@@ -40,7 +40,7 @@ static void __exit module_cleanup(void)
 }
 
 //--------------------------------------------------------
-module_init(panic_init);
-module_exit(panic_cleanup);
+module_init(module_init);
+module_exit(module_cleanup);
 
 //=================== END OF FILE ========================
