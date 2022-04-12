@@ -28,73 +28,149 @@
 #undef MODULE
 #define MODULE
 
-
+// inclusions
 #include <linux/kernel.h>   /* We're doing kernel work */
 #include <linux/module.h>   /* Specifically, a module */
 #include <linux/fs.h>       /* for register_chrdev */
 #include <linux/uaccess.h>  /* for get_user and put_user */
 #include <linux/slab.h>
 #include <linux/string.h>   /* for memset. NOTE - not string.h!*/
-
 #include "message_slot.h"
 
 
-#define channel_amount
+
+
+//================== AUXILIARY DEFINIIONS/INITIALIZATIONS ===========================
+// simple boolean interface
+#define true 1
+#define false 0
+#define bool int
+
+//------------------------------------------------------------------------------
+// the channel id for a file descriptor that has yet to be assigned a communication message channel over its message slot
+#define CHANNEL_NOT_SET -1
+
+//------------------------------------------------------------------------------
+// module license
 MODULE_LICENSE("GPL");
 
-// a data structure used to maintain message channels
+//------------------------------------------------------------------------------
+// a data structure used to maintain message channels: A Linked-List Cell
 typedef struct channel_entry {
 	char* message;
-	struct channel_entry next;
+	unsigned int channel_id;
+	unsigned int channel_ref_count;
+	struct channel_entry *next;
 } channel_entry;
 
-// a data structure used to maintain message slots
+//------------------------------------------------------------------------------
+// a data structure used to maintain message slots: A Linked-List of Channels
 typedef struct slot_entry {
-	int device_count = 0;
-	channel_entry head;
+	int dev_ref_count = 0;
+	channel_entry *head;
 } slot_entry;
 
+//------------------------------------------------------------------------------
 // an array that maintains the info about all open message slots
 static slot_entry slots[256];
 
-// used to prevent concurent access into the same device
-static int dev_open_flag = 0;
-
+//------------------------------------------------------------------------------
+// character device info (no idea if should preserve)
 static struct chardev_info device_info;
+//------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+//================== AUXILIARY FUNCTION DECLARATIONS ===========================
+/* This function extracts the channel id that resides inside the file struct of the file descriptor.
+ * In case the channel id is set (i.e., valid - greater than 0), return true.
+ * In case the channel id is not set (i.e., invlaid - equals to 0), return false. */
+static bool is_channel_set(struct file* file);
+//------------------------------------------------------------------------------
+/* This function extracts from the file struct of a file descriptor the minor number.
+ * This is done by accessing the dentry field in the file struct, which contains the path field,
+ * which contains a pointer to the inode. See: https://www.oreilly.com/library/view/linux-device-drivers/0596000081/ch03s04.html#:~:text=filp%2D%3Ef_dentry%2D%3Ed_inode.
+ * By that, we simply extract the minor number from the inode struct. */
+static unsigned int get_minor_from_file(struct file* file);
+//------------------------------------------------------------------------------
+/* This function extracts the channel entry using <channel_id>, from the message slot Data-Structure (A Linked-List of Channels).
+ * Returns NULL if no channel found. */
+static channel_entry get_channel_entry(slot_entry message_slot, unsigned int channel_id);
+//------------------------------------------------------------------------------
+
+
+
+
+
+
+
+//================== AUXILIARY FUNCTION DEFINITIONS===========================
+static bool is_channel_set(struct file* file) {
+	if (filp->private_data == CHANNEL_NOT_SET) { 
+		return false;
+	}
+	
+	return true;
+}
+//------------------------------------------------------------------------------
+static unsigned int get_minor_from_file(struct file* file) {
+	return iminor(file->f_dentry->d_inode);
+}
+//------------------------------------------------------------------------------
+static channel_entry get_channel_entry(slot_entry message_slot, unsigned int channel_id) {
+	channel_entry *curr = message_slot->head;
+	
+	do {
+		curr = curr -> next;
+		if (curr -> channel_id == channel_id) {
+			return *curr;
+		}
+		
+	} while (curr != NULL);
+	
+	return NULL;
+}
+//------------------------------------------------------------------------------
+
+
+
+
+
 
 
 //================== DEVICE FUNCTIONS ===========================
 static int device_open( struct inode* inode,
                         struct file*  file )
 {
-  unsigned long flags; // for spinlock
-  printk("Invoking device_open(%p)\n", file);
-
-  // We don't want to talk to two processes at the same time
-  spin_lock_irqsave(&device_info.lock, flags);
-  if( 1 == dev_open_flag )
-  {
-    spin_unlock_irqrestore(&device_info.lock, flags);
-    return -EBUSY;
-  }
-
-  ++dev_open_flag;
-  spin_unlock_irqrestore(&device_info.lock, flags);
-  return SUCCESS;
+	// an indicator for further instructions that a channel has not been set since opening
+	file->private_data = (void*) CHANNEL_NOT_SET;
+	
+	// getting the minor number
+	unsigned int minor = iminor(inode);
+	
+	// incrementing the reference count of the message slot
+	slot_entry[minor].dev_ref_count++;
+	
+	return SUCCESS;
 }
 
 //---------------------------------------------------------------
 static int device_release( struct inode* inode,
                            struct file*  file)
 {
-  unsigned long flags; // for spinlock
-  printk("Invoking device_release(%p,%p)\n", inode, file);
-
-  // ready for our next caller
-  spin_lock_irqsave(&device_info.lock, flags);
-  --dev_open_flag;
-  spin_unlock_irqrestore(&device_info.lock, flags);
-  return SUCCESS;
+	// getting the minor number
+	unsigned int minor = iminor(inode);
+	
+	// decrementing the reference count of the message slot
+	slot_entry[minor].dev_ref_count--;
+	
+	// if reference count is lower than 1, remove the 
+  	return SUCCESS;
 }
 
 //---------------------------------------------------------------
@@ -122,10 +198,20 @@ static ssize_t device_write( struct file*       file,
                              size_t             length,
                              loff_t*            offset)
 {
-  int i;
   printk("Invoking device_write(%p,%ld)\n", file, length);
-  for( i = 0; i < length && i < BUF_LEN; ++i ) {
-    get_user(the_message[i], &buffer[i]);
+  
+  // extracting the minor of the message slot
+  unsigned int minor = get_minor_from_file(file);
+  
+  // extracting the channel entry for the communiation channel corresponding to the one set in the file descriptor
+  channel_entry channel = get_channel_entry(slots[minor], file->private_data);
+  
+  // allocating memory for the channel's buffer (TODO)
+  
+  
+  // writing the message from the user into the channel's buffer
+  for( int i = 0; i < length && i < BUF_LEN; ++i ) {
+    get_user(channel.message[i], &buffer[i]);
   }
  
   // return the number of input characters used
@@ -139,19 +225,20 @@ static long device_ioctl( struct   file* file,
 {
 	if ( MSG_SLOT_CHANNEL == ioctl_command_id ) {
 
-		if (0 == ioctl_param) {
+		// if the channel id is invalid
+		if (0 == ioctl_param) { 
 			errno = EINVAL;
 			return -1;
 		}
 		
 		// change the channel accordin to ioctl_param
 		file->private_data = (void*) ioctl_param;
-		return SUCCESS;
-		
-	} else {
-		errno = EINVAL;
-		return -1;
+		return SUCCESS;		
 	}
+	
+	// in case the command specified wasn't the MSG_SLOT_CHANNEL command
+	errno = EINVAL;
+	return -1;
 }
 
 //==================== DEVICE SETUP =============================
@@ -198,8 +285,6 @@ static void __exit simple_cleanup(void)
   // Unregister the device
   // Should always succeed
   unregister_chrdev(MAJOR_NUM, DEVICE_RANGE_NAME);
-  
-  // The allocated memory for the message slot gets freed on termination, therefore we don't free it
 }
 
 //---------------------------------------------------------------
