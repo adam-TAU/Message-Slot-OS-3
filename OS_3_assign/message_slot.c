@@ -385,6 +385,20 @@ static void __exit simple_cleanup(void)
   // Unregister the device
   // Should always succeed
   unregister_chrdev(MAJOR_NUM, DEVICE_RANGE_NAME);
+  
+  // freeing all of the memory used by different message-slot's message-channels
+  for (size_t i = 0; i < 256; i++) {
+  	channel_entry* curr = slots[i]->head;
+  	channel_entry* tmp;
+  	
+  	do {
+  		if (curr->message != NULL) kfree(curr->message); // free the space the message occupied
+  		tmp = curr; // save the current channel entry
+  		curr = curr->next; // advance in the Linked List of Channels
+  		kfree(tmp); // free previous channel entry
+  		
+  	} while (curr != NULL);
+  }
 }
 
 //---------------------------------------------------------------
