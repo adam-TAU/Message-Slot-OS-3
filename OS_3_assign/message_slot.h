@@ -11,19 +11,13 @@
 #define MAJOR_NUM 235
 
 // define the ioctl command id for changing the channel
-#define MSG_SLOT_CHANNEL 1433
+#define MSG_SLOT_CHANNEL _IOW(MAJOR_NUM, 0, long)
 
-// Set the file descriptor of the device driver == change message slot
-#define IOCTL_SET_SLOT _IOW(MAJOR_NUM, 0, long)
-
+// other macros
 #define DEVICE_RANGE_NAME "char_dev"
 #define BUF_LEN 80
 #define DEVICE_FILE_NAME "message_slot"
 #define SUCCESS 0
-
-
-
-
 
 
 

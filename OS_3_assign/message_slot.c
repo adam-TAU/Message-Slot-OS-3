@@ -36,21 +36,32 @@
 #include <linux/slab.h>
 #include <linux/string.h>   /* for memset. NOTE - not string.h!*/
 
+#include "message_slot.h"
+
+
+#define channel_amount
 MODULE_LICENSE("GPL");
 
-//Our custom definitions of IOCTL operations
-#include "message_slot.h"
+// a data structure used to maintain message channels
+typedef struct channel_entry {
+	char* message;
+	struct channel_entry next;
+} channel_entry;
+
+// a data structure used to maintain message slots
+typedef struct slot_entry {
+	int device_count = 0;
+	channel_entry head;
+} slot_entry;
+
+// an array that maintains the info about all open message slots
+static slot_entry slots[256];
 
 // used to prevent concurent access into the same device
 static int dev_open_flag = 0;
 
 static struct chardev_info device_info;
 
-// The message the device will give when asked
-static char the_message[BUF_LEN];
-
-//Do we need to encrypt?
-static int encryption_flag = 0;
 
 //================== DEVICE FUNCTIONS ===========================
 static int device_open( struct inode* inode,
@@ -126,15 +137,17 @@ static long device_ioctl( struct   file* file,
                           unsigned int   ioctl_command_id,
                           unsigned long  ioctl_param )
 {
-	if ( IOCTL_SET_SLOT == ioctl_command_id ) {
-	
+	if ( MSG_SLOT_CHANNEL == ioctl_command_id ) {
+
 		if (0 == ioctl_param) {
 			errno = EINVAL;
 			return -1;
 		}
 		
 		// change the channel accordin to ioctl_param
+		file->private_data = (void*) ioctl_param;
 		return SUCCESS;
+		
 	} else {
 		errno = EINVAL;
 		return -1;
@@ -159,20 +172,13 @@ struct file_operations Fops =
 // Initialize the module - Register the character device
 static int __init simple_init(void)
 {
-  int rc = -1;
-  // init dev struct
-  memset( &device_info, 0, sizeof(struct chardev_info) );
-  spin_lock_init( &device_info.lock );
-
   // Register driver capabilities. Obtain major num
-  rc = register_chrdev( MAJOR_NUM, DEVICE_RANGE_NAME, &Fops );
-
-  // Negative values signify an error
-  if( rc < 0 )
-  {
-    printk( KERN_ERR "%s registraion failed for  %d\n",
-                       DEVICE_FILE_NAME, MAJOR_NUM );
-    return rc;
+  // Return value other than 0 signfies an error: 
+  // http://www.linuxsavvy.com/resources/linux/man/man9/register_chrdev.9.html#:~:text=RETURN%20VALUE-,On,-success%2C%20register_chrdev%20returns
+  if (0 != register_chrdev( MAJOR_NUM, DEVICE_RANGE_NAME, &Fops );
+  
+    printk( KERN_ERR "%s registraion failed for  %d\n", DEVICE_FILE_NAME, MAJOR_NUM );
+    return -1;
   }
 
   printk( "Registeration is successful. ");
