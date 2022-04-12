@@ -58,15 +58,15 @@ MODULE_LICENSE("GPL");
 // a data structure used to maintain message channels: A Linked-List Cell
 typedef struct channel_entry {
 	char* message;
+	size_t message_length;
 	unsigned int channel_id;
-	unsigned int channel_ref_count;
 	struct channel_entry *next;
 } channel_entry;
 
 //------------------------------------------------------------------------------
 // a data structure used to maintain message slots: A Linked-List of Channels
 typedef struct slot_entry {
-	int dev_ref_count = 0;
+	unsigned int dev_ref_count;
 	channel_entry *head;
 } slot_entry;
 
@@ -98,9 +98,27 @@ static bool is_channel_set(struct file* file);
  * By that, we simply extract the minor number from the inode struct. */
 static unsigned int get_minor_from_file(struct file* file);
 //------------------------------------------------------------------------------
-/* This function extracts the channel entry using <channel_id>, from the message slot Data-Structure (A Linked-List of Channels).
+/* This function extracts and returns a valid pointer to the message channel entry,
+ * in the given message slot <message_slot> which corresponds to the channel id <channel_id>.
  * Returns NULL if no channel found. */
-static channel_entry get_channel_entry(slot_entry message_slot, unsigned int channel_id);
+static channel_entry* get_channel_entry(slot_entry message_slot, unsigned int channel_id);
+
+/* This function returns true if the message slot is currently maintaining a channel with the channel id <channel_id>.
+ * Else, false is returned */
+static bool message_slot_contains(slot_entry message_slot, unsigned int channel_id);
+
+/* This function accepts a message slot <message_slot> and a channel id <channel_id>, and is ought to change the channel buffer
+ * length (size) to <message_length>. Like, that, we would maintain the obliged space complexity, 
+ * of O(C * M). If a channel with such channel id doesn't exist in the message slot's Data Structure (Linked list of Channels),
+ * we simply create such channel and insret it into the start of the Linked List of Channels of the message slot.
+ * 
+ * Return values:
+ * 		- We must check that the message length <message_length> fits are requirement of at most 128 bytes, but at least one byte.
+ *		  If this check fails, NULL is returned and errno is set to EMSGSIZE.
+ *		- Allocating memory might result in an error. If such error occurs, NULL is returned and errno is set ENOMEM.
+ *		- On any other successful run, a valid pointer to the updated message channel entry is returned.
+ */ 
+static channel_entry* message_slot_update_channel(slot_entry message_slot, unsigned int channel_id, size_t message_length);
 //------------------------------------------------------------------------------
 
 
@@ -122,18 +140,62 @@ static unsigned int get_minor_from_file(struct file* file) {
 	return iminor(file->f_dentry->d_inode);
 }
 //------------------------------------------------------------------------------
-static channel_entry get_channel_entry(slot_entry message_slot, unsigned int channel_id) {
+static channel_entry* message_slot_get_channel_entry(slot_entry message_slot, unsigned int channel_id) {
 	channel_entry *curr = message_slot->head;
 	
 	do {
 		curr = curr -> next;
 		if (curr -> channel_id == channel_id) {
-			return *curr;
+			return curr;
 		}
 		
 	} while (curr != NULL);
 	
 	return NULL;
+}
+//------------------------------------------------------------------------------
+static bool message_slot_contains(slot_entry message_slot, unsigned int channel_id) {
+	if (NULL != message_slot_get_channel_entry(message_slot, channel_id)) {
+		return true;
+	}
+	return false;
+}
+//------------------------------------------------------------------------------
+static channel_entry* message_slot_update_channel(slot_entry message_slot, unsigned int channel_id, size_t message_length) {
+  // validating message length
+  if (message_length == 0 || message_length > 128) {
+  	errno = EMSGSIZE;
+  	return NULL;
+  }
+
+  // extracting the channel entry in the message slot corresponding to <channel_id>
+  channel_entry *curr_channel = message_slot_get_channel_entry(slots[minor], file->private_data);
+  
+  // if a channel entry was never created that corresponds to the channel id under the message slot:
+  // create one and add it to the start of the message slot's linked list of channels
+  if (NULL == curr_channel) {
+	  curr_channel = kmalloc(sizeof(channel_entry), GFP_KERNEL);
+	  if (!curr_channel) {
+	  	errno = ENOMEM;
+	  	return NULL;
+	  }
+
+	  curr_channel->channel_id = file->private_data;
+	  curr_channel->next = slots[minor];
+	  slots[minor] = curr_channel;
+  }
+  
+  // reallocating memory for the channel's buffer (To maintain the space complexity of: O(C * M))
+  if (curr_channel -> message == NULL) {
+  	kfree(curr_channel -> message);
+  }
+  curr_channel -> message = kmalloc(sizeof(char) * length, GFP_KERNEL);
+  
+  // changing the message length
+  curr_channel -> message_length = message_length;
+  
+  // returning the updated channel
+  return curr_channel;
 }
 //------------------------------------------------------------------------------
 
@@ -181,13 +243,39 @@ static ssize_t device_read( struct file* file,
                             size_t       length,
                             loff_t*      offset )
 {
-  // read doesnt really do anything (for now)
-  printk( "Invocing device_read(%p,%ld) - "
-          "operation not supported yet\n"
-          "(last written - %s)\n",
-          file, length, the_message );
-  //invalid argument error
-  return -EINVAL;
+  printk("Invoking device_write(%p,%ld)\n", file, length);
+
+  // verifying that the file descriptor holds a valid channel id
+  if (!is_channel_set(file)) {
+  	errno = EINVAL;
+  	return -1;
+  }
+  
+  // extracting the minor of the message slot
+  unsigned int minor = get_minor_from_file(file);
+  
+  // extracting the message-channel entry
+  channel_entry *curr_channel;
+  if (NULL == (curr_channel = message_slot_get_channel_entry(slots[minor], file->private_data)) ) { // if no channel is found, message mustn't exist
+  	errno = EWOULDBLOCK;
+  	return -1;
+  } else if (NULL == curr_channel -> message) { // if channel exists, but with no message inside
+  	errno = EWOULDBLOCK;
+  	return -1;
+  }
+  
+  // validating that the user buffer is big enough for the message
+  if (length < channel_entry -> message_length) {
+  	errno = ENOSPC;
+  	return -1;
+  }
+  
+  // reading the message lying in the channel buffer
+  for( size_t i = 0; i < length && i < BUF_LEN; ++i ) {
+    put_user(curr_channel->message[i], &buffer[i]);
+  }
+  
+  return SUCCESS;
 }
 
 //---------------------------------------------------------------
@@ -200,18 +288,24 @@ static ssize_t device_write( struct file*       file,
 {
   printk("Invoking device_write(%p,%ld)\n", file, length);
   
+  // verifying that the file descriptor holds a valid channel id
+  if (!is_channel_set(file)) {
+  	errno = EINVAL;
+  	return -1;
+  }
+  
   // extracting the minor of the message slot
   unsigned int minor = get_minor_from_file(file);
   
-  // extracting the channel entry for the communiation channel corresponding to the one set in the file descriptor
-  channel_entry channel = get_channel_entry(slots[minor], file->private_data);
-  
-  // allocating memory for the channel's buffer (TODO)
-  
+  // updating the messages channel
+  channel_entry *curr_channel;
+  if (NULL == (curr_channel = message_slot_update_channel(slots[minor], file->private_data, length)) ) {
+  	return -1;
+  }
   
   // writing the message from the user into the channel's buffer
-  for( int i = 0; i < length && i < BUF_LEN; ++i ) {
-    get_user(channel.message[i], &buffer[i]);
+  for( size_t i = 0; i < length && i < BUF_LEN; ++i ) {
+    get_user(curr_channel->message[i], &buffer[i]);
   }
  
   // return the number of input characters used
