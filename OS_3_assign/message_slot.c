@@ -102,11 +102,11 @@ static unsigned int get_minor_from_file(struct file* file);
  * in the given message slot <message_slot> which corresponds to the channel id <channel_id>.
  * Returns NULL if no channel found. */
 static channel_entry* get_channel_entry(slot_entry message_slot, unsigned int channel_id);
-
+//------------------------------------------------------------------------------
 /* This function returns true if the message slot is currently maintaining a channel with the channel id <channel_id>.
  * Else, false is returned */
 static bool message_slot_contains(slot_entry message_slot, unsigned int channel_id);
-
+//------------------------------------------------------------------------------
 /* This function accepts a message slot <message_slot> and a channel id <channel_id>, and is ought to change the channel buffer
  * length (size) to <message_length>. Like, that, we would maintain the obliged space complexity, 
  * of O(C * M). If a channel with such channel id doesn't exist in the message slot's Data Structure (Linked list of Channels),
@@ -272,7 +272,10 @@ static ssize_t device_read( struct file* file,
   
   // reading the message lying in the channel buffer
   for( size_t i = 0; i < length && i < BUF_LEN; ++i ) {
-    put_user(curr_channel->message[i], &buffer[i]);
+    if (0 != put_user(curr_channel->message[i], &buffer[i])) {
+    	errno = ECANCELED;
+    	return -1;
+    }
   }
   
   return SUCCESS;
@@ -305,7 +308,10 @@ static ssize_t device_write( struct file*       file,
   
   // writing the message from the user into the channel's buffer
   for( size_t i = 0; i < length && i < BUF_LEN; ++i ) {
-    get_user(curr_channel->message[i], &buffer[i]);
+    if (0 != get_user(curr_channel->message[i], &buffer[i])) {
+    	errno = ECANCELED;
+    	return -1;
+    }
   }
  
   // return the number of input characters used
