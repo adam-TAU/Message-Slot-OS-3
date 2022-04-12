@@ -33,6 +33,7 @@
 #include <linux/module.h>   /* Specifically, a module */
 #include <linux/fs.h>       /* for register_chrdev */
 #include <linux/uaccess.h>  /* for get_user and put_user */
+#include <linux/slab.h>
 #include <linux/string.h>   /* for memset. NOTE - not string.h!*/
 
 MODULE_LICENSE("GPL");
@@ -112,11 +113,8 @@ static ssize_t device_write( struct file*       file,
 {
   int i;
   printk("Invoking device_write(%p,%ld)\n", file, length);
-  for( i = 0; i < length && i < BUF_LEN; ++i )
-  {
+  for( i = 0; i < length && i < BUF_LEN; ++i ) {
     get_user(the_message[i], &buffer[i]);
-    if( 1 == encryption_flag )
-      the_message[i] += 1;
   }
  
   // return the number of input characters used
@@ -172,7 +170,7 @@ static int __init simple_init(void)
   // Negative values signify an error
   if( rc < 0 )
   {
-    printk( KERN_ALERT "%s registraion failed for  %d\n",
+    printk( KERN_ERR "%s registraion failed for  %d\n",
                        DEVICE_FILE_NAME, MAJOR_NUM );
     return rc;
   }
