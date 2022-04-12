@@ -1,14 +1,14 @@
 #include "message_slot.h"
 
 
-
+#include <stdio.h>
 
 
 
 
 int main(int args, char* argv[]) {
 	if (args != 4) {
-		errno = EINVAL
+		errno = EINVAL;
 		perror("Incorrect amount of arguments");
 		exit(1);
 	}
