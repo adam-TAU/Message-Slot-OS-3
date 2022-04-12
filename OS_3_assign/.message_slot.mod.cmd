@@ -1,0 +1,1 @@
+cmd_/home/student/Documents/Message-Slot-OS-3/OS_3_assign/message_slot.mod := { echo  /home/student/Documents/Message-Slot-OS-3/OS_3_assign/message_slot.o;  echo; } > /home/student/Documents/Message-Slot-OS-3/OS_3_assign/message_slot.mod

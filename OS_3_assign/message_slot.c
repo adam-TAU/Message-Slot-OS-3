@@ -21,26 +21,26 @@
 #include <linux/init.h>
 
 
-
+MODULE_LICENSE("GPL");
 
 
 
 
 //--- loader ---------------------------------------------
-static __init int module_init(void)
+static __init int slot_init(void)
 {
   printk("Initializing the message slot module!\n");
   return 0;
 }
 
 //--- unloader -------------------------------------------
-static void __exit module_cleanup(void)
+static void __exit slot_cleanup(void)
 {
   printk("Destructing the message slot module!\n");
 }
 
 //--------------------------------------------------------
-module_init(module_init);
-module_exit(module_cleanup);
+module_init(slot_init);
+module_exit(slot_cleanup);
 
 //=================== END OF FILE ========================

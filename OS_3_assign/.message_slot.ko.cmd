@@ -1,0 +1,1 @@
+cmd_/home/student/Documents/Message-Slot-OS-3/OS_3_assign/message_slot.ko := ld -r  -m elf_x86_64  --build-id=sha1  -T scripts/module.lds -o /home/student/Documents/Message-Slot-OS-3/OS_3_assign/message_slot.ko /home/student/Documents/Message-Slot-OS-3/OS_3_assign/message_slot.o /home/student/Documents/Message-Slot-OS-3/OS_3_assign/message_slot.mod.o;  true
