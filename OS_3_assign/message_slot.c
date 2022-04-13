@@ -180,10 +180,8 @@ static channel_entry* message_slot_update_channel(slot_entry message_slot, unsig
   }
   
   // reallocating memory for the channel's buffer (To maintain the space complexity of: O(C * M))
-  if (NULL == curr_channel -> message) {
-  	 kfree(curr_channel -> message);
-  }
-  curr_channel -> message = kmalloc(sizeof(char) * length, GFP_KERNEL);
+  if (NULL != curr_channel -> message) kfree(curr_channel -> message);
+  curr_channel -> message = kmalloc(sizeof(char) * message_length, GFP_KERNEL);
   
   // changing the message length
   curr_channel -> message_length = message_length;
