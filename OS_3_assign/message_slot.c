@@ -136,13 +136,13 @@ static bool is_channel_set(struct file* file) {
 static channel_entry* message_slot_get_channel_entry(slot_entry message_slot, unsigned int channel_id) {
 	channel_entry *curr = message_slot.head;
 	
-	do {
+	while (curr != NULL) {
 		curr = curr -> next;
 		if (curr -> channel_id == channel_id) {
 			return curr;
 		}
 		
-	} while (curr != NULL);
+	}
 	
 	return NULL;
 }
@@ -152,7 +152,7 @@ static int message_slot_update_channel(slot_entry message_slot, unsigned int cha
   if (message_length == 0 || message_length > 128) {
   	return -EMSGSIZE;
   }
-	
+ 
   // extracting the channel entry in the message slot corresponding to <channel_id>
   *curr_channel = message_slot_get_channel_entry(message_slot, channel_id);
   
@@ -285,14 +285,12 @@ static ssize_t device_write( struct file*       file,
   // extracting the minor of the message slot
   minor = get_minor_from_file(file);
   
-  
   // updating the messages channel
   channel_id = (unsigned int)file->private_data;
-  printk(KERN_CRIT "msg: here1\n" );
   if ( 0 > (ret = message_slot_update_channel(slots[minor], channel_id, length, &curr_channel)) ) {
   	return ret;
   }
-  printk(KERN_CRIT "msg: here2\n" );
+  
   // writing the message from the user into the channel's buffer
   for( i = 0; i < length && i < BUF_LEN; ++i ) {
     if (0 != get_user(curr_channel->message[i], &buffer[i])) {
