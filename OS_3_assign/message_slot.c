@@ -152,7 +152,7 @@ static int message_slot_update_channel(slot_entry message_slot, unsigned int cha
   if (message_length == 0 || message_length > 128) {
   	return -EMSGSIZE;
   }
-
+	
   // extracting the channel entry in the message slot corresponding to <channel_id>
   *curr_channel = message_slot_get_channel_entry(message_slot, channel_id);
   
@@ -192,7 +192,7 @@ static int device_open( struct inode* inode,
                         struct file*  file )
 {
 	unsigned int minor;
-
+	
 	// an indicator for further instructions that a channel has not been set since opening
 	file->private_data = (void*) CHANNEL_NOT_SET;
 	
@@ -230,7 +230,7 @@ static ssize_t device_read( struct file* file,
                             loff_t*      offset )
 {
   size_t i;
-  unsigned int minor;
+  unsigned int minor, channel_id;
   channel_entry *curr_channel;
 
   // verifying that the file descriptor holds a valid channel id
@@ -242,7 +242,8 @@ static ssize_t device_read( struct file* file,
   minor = get_minor_from_file(file);
   
   // extracting the message-channel entry
-  if ( NULL == (curr_channel = message_slot_get_channel_entry(slots[minor], *(int*)file->private_data)) ) { // if no channel is found, message mustn't exist
+  channel_id = (unsigned int)file->private_data;
+  if ( NULL == (curr_channel = message_slot_get_channel_entry(slots[minor], channel_id)) ) { // if no channel is found, message mustn't exist
   	return -EWOULDBLOCK;
   } else if ( NULL == (curr_channel -> message) ) { // if channel exists, but with no message inside
   	return -EWOULDBLOCK;
@@ -272,7 +273,7 @@ static ssize_t device_write( struct file*       file,
                              loff_t*            offset)
 {
   size_t i;
-  unsigned int minor;
+  unsigned int minor, channel_id;
   channel_entry *curr_channel;
   int ret;
     
@@ -284,18 +285,21 @@ static ssize_t device_write( struct file*       file,
   // extracting the minor of the message slot
   minor = get_minor_from_file(file);
   
+  
   // updating the messages channel
-  if ( 0 > (ret = message_slot_update_channel(slots[minor], *(int*)file->private_data, length, &curr_channel)) ) {
+  channel_id = (unsigned int)file->private_data;
+  printk(KERN_CRIT "msg: here1\n" );
+  if ( 0 > (ret = message_slot_update_channel(slots[minor], channel_id, length, &curr_channel)) ) {
   	return ret;
   }
-  
+  printk(KERN_CRIT "msg: here2\n" );
   // writing the message from the user into the channel's buffer
   for( i = 0; i < length && i < BUF_LEN; ++i ) {
     if (0 != get_user(curr_channel->message[i], &buffer[i])) {
     	return -EFAULT;
     }
   }
- 
+  
   // return the number of input characters used
   return i;
 }
