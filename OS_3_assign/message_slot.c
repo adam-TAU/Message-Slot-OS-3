@@ -101,7 +101,7 @@ static unsigned int get_minor_from_file(struct file* file);
 /* This function extracts and returns a valid pointer to the message channel entry,
  * in the given message slot <message_slot> which corresponds to the channel id <channel_id>.
  * Returns NULL if no channel found. */
-static channel_entry* get_channel_entry(slot_entry message_slot, unsigned int channel_id);
+static channel_entry* message_slot_get_channel_entry(slot_entry message_slot, unsigned int channel_id);
 //------------------------------------------------------------------------------
 /* This function returns true if the message slot is currently maintaining a channel with the channel id <channel_id>.
  * Else, false is returned */
@@ -169,7 +169,7 @@ static channel_entry* message_slot_update_channel(slot_entry message_slot, unsig
   }
 
   // extracting the channel entry in the message slot corresponding to <channel_id>
-  channel_entry *curr_channel = message_slot_get_channel_entry(slots[minor], file->private_data);
+  channel_entry *curr_channel = message_slot_get_channel_entry(message_slot, channel_id);
   
   // if a channel entry was never created that corresponds to the channel id under the message slot:
   // create one and add it to the start of the message slot's linked list of channels
@@ -180,14 +180,14 @@ static channel_entry* message_slot_update_channel(slot_entry message_slot, unsig
 	  	return NULL;
 	  }
 
-	  curr_channel->channel_id = file->private_data;
-	  curr_channel->next = slots[minor];
-	  slots[minor] = curr_channel;
+	  curr_channel->channel_id = channel_id;
+	  curr_channel->next = message_slot.head;
+	  message_slot.head = curr_channel;
   }
   
   // reallocating memory for the channel's buffer (To maintain the space complexity of: O(C * M))
-  if (curr_channel -> message == NULL) {
-  	kfree(curr_channel -> message);
+  if (NULL == curr_channel -> message) {
+  	 kfree(curr_channel -> message);
   }
   curr_channel -> message = kmalloc(sizeof(char) * length, GFP_KERNEL);
   
@@ -388,7 +388,7 @@ static void __exit simple_cleanup(void)
   
   // freeing all of the memory used by different message-slot's message-channels
   for (size_t i = 0; i < 256; i++) {
-  	channel_entry* curr = slots[i]->head;
+  	channel_entry* curr = slots[i].head;
   	channel_entry* tmp;
   	
   	do {
