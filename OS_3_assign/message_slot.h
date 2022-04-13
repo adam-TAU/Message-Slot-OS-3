@@ -13,6 +13,11 @@
 // define the ioctl command id for changing the channel
 #define MSG_SLOT_CHANNEL _IOW(MAJOR_NUM, 0, long)
 
+// simple boolean interface
+#define true 1
+#define false 0
+#define bool int
+
 // other macros
 #define DEVICE_RANGE_NAME "char_dev"
 #define BUF_LEN 80

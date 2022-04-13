@@ -26,7 +26,7 @@ int main(int args, char* argv[]) {
 	}
 	
 	// parsing the data
-	char* chr_dev_path = argv[1]);
+	char* chr_dev_path = argv[1];
 	int channel_id = atoi(argv[2]);
 	
 	// removing the terminating NULL character from the end of the string

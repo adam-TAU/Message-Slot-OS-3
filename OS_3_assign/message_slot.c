@@ -42,15 +42,8 @@
 
 
 //================== AUXILIARY DEFINIIONS/INITIALIZATIONS ===========================
-// simple boolean interface
-#define true 1
-#define false 0
-#define bool int
-
-//------------------------------------------------------------------------------
 // the channel id for a file descriptor that has yet to be assigned a communication message channel over its message slot
 #define CHANNEL_NOT_SET -1
-
 //------------------------------------------------------------------------------
 // module license
 MODULE_LICENSE("GPL");

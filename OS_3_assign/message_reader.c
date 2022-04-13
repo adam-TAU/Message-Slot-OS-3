@@ -30,7 +30,7 @@ int main(int args, char* argv[]) {
 	}
 	
 	// parsing the data
-	char* chr_dev_path = argv[1]);
+	char* chr_dev_path = argv[1];
 	int channel_id = atoi(argv[2]);
 	
 	// open the device file
@@ -39,7 +39,12 @@ int main(int args, char* argv[]) {
 		print_err("Error with opening the device file", true);
 	}
 	
-	// Read the message, and save the amount of bytes read into the variable 'count'
+	// set the channel
+	if ( 0 != ioctl(fd, MSG_SLOT_CHANNEL, channel_id) ) {
+		print_err("Error with setting the message channel", true);
+	}
+	
+	// Read the message and save the amount of bytes read into <bytes_read>
 	char message[BUF_LEN];
 	if ( 0 > (bytes_read = read(fd, message, BUF_LEN)) ) {
 		print_err("Error with reading bytes from message channel", true);
@@ -51,7 +56,7 @@ int main(int args, char* argv[]) {
 	}
 	
 	// Print the message
-	if ( 0 > write(STDOUT_FILENO, the_message, count) ) {
+	if ( 0 > write(STDOUT_FILENO, the_message, bytes_read) ) {
 		print_err("Error with printing the message to stdout", true);
 	}
 	
