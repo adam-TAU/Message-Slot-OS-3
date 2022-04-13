@@ -1,5 +1,6 @@
 #include "message_slot.h"
 
+#include <errno.h>	/* errors */
 #include <fcntl.h>      /* open */ 
 #include <unistd.h>     /* exit */
 #include <sys/ioctl.h>  /* ioctl */

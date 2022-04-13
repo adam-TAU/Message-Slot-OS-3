@@ -1,7 +1,6 @@
 #ifndef MESSAGE_SLOT_H
 #define MESSAGE_SLOT_H
 
-#include <errno.h>
 #include <linux/ioctl.h>
 
 // The major device number.
