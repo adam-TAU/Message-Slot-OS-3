@@ -5,5 +5,5 @@ sudo rm /dev/slot1
 sudo mknod /dev/slot1 c 235 1
 
 bash ../scripts/comp.sh
-sudo ../sender /dev/slot1 1 hello
+sudo ../reader /dev/slot1 1
 dmesg
