@@ -73,7 +73,7 @@ typedef struct slot_entry {
 
 //------------------------------------------------------------------------------
 // an array that maintains the info about all open message slots
-static slot_entry slots[256];
+static slot_entry slots[256]; // all elements 0
 //------------------------------------------------------------------------------
 
 
@@ -370,13 +370,13 @@ static void __exit simple_cleanup(void)
   	channel_entry* curr = slots[i].head;
   	channel_entry* tmp;
   	
-  	do {
+  	while (curr != NULL) {
   		if (curr->message != NULL) kfree(curr->message); // free the space the message occupied
   		tmp = curr; // save the current channel entry
   		curr = curr->next; // advance in the Linked List of Channels
   		kfree(tmp); // free previous channel entry
   		
-  	} while (curr != NULL);
+  	}
   }
 }
 
