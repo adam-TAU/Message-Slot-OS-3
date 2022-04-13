@@ -19,8 +19,8 @@
 #define DEVICE_FILE_NAME "message_slot"
 #define SUCCESS 0
 
-
-
+// a function that acceps an error message and prints the error message along with 
+void print_err(char* error_message, bool terminate);
 
 
 #endif

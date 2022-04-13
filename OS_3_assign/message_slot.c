@@ -40,6 +40,7 @@
 
 
 
+
 //================== AUXILIARY DEFINIIONS/INITIALIZATIONS ===========================
 // simple boolean interface
 #define true 1
@@ -309,7 +310,7 @@ static ssize_t device_write( struct file*       file,
   // writing the message from the user into the channel's buffer
   for( size_t i = 0; i < length && i < BUF_LEN; ++i ) {
     if (0 != get_user(curr_channel->message[i], &buffer[i])) {
-    	errno = ECANCELED;
+    	errno = EFAULT;
     	return -1;
     }
   }

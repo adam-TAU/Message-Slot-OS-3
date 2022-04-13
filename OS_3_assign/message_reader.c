@@ -7,16 +7,26 @@
 #include <stdlib.h>
 
 
+void print_err(char* error_message, bool terminate) {
+	int tmp_errno = errno;
+	perror(error_message); // this basically prints error_message, with <strerror(errno)> appended to it */
+	errno = tmp_errno;
+	
+	if (terminate) {
+		exit(1);
+	}
+}
+
+
 
 static char the_message[BUF_LEN];
-static int count;
+static int bytes_read;
 
 
 int main(int args, char* argv[]) {
 	if (args != 3) {
 		errno = EINVAL;
-		perror("Incorrect amount of arguments");
-		exit(1);
+		print_err("Incorrect amount of arguments", true);
 	}
 	
 	// parsing the data
@@ -24,21 +34,26 @@ int main(int args, char* argv[]) {
 	int channel_id = atoi(argv[2]);
 	
 	// open the device file
-	fd = open(chr_dev_path, O_RDONLY);
+	int fd;
+	if ( 0 > (fd = open(chr_dev_path, O_RDONLY)) ) {
+		print_err("Error with opening the device file", true);
+	}
 	
 	// Read the message, and save the amount of bytes read into the variable 'count'
 	char message[BUF_LEN];
-	count = read(fd, message, BUF_LEN);
+	if ( 0 > (bytes_read = read(fd, message, BUF_LEN)) ) {
+		print_err("Error with reading bytes from message channel", true);
+	}
 	
 	// close the device file
-	close(fd);
-	
-	// verify that the return value of the read syscall indicates success
-	if (count < 0) {
-		perror("Error with reading the message from the message channel");
-		exit(1);
+	if ( 0 != close(fd) ) {
+		print_err("Error with closing the device file", true);
 	}
 	
 	// Print the message
-	write(STDOUT_FILENO, the_message, count);
+	if ( 0 > write(STDOUT_FILENO, the_message, count) ) {
+		print_err("Error with printing the message to stdout", true);
+	}
+	
+	exit(0);
 }
