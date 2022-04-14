@@ -9,3 +9,7 @@ sudo insmod message_slot.ko 235 # inserting new module
 dmesg
 
 bash ../scripts/cleanup.sh
+
+
+echo "Relinked the message_slot module"
+
