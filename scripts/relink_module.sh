@@ -1,14 +1,30 @@
 #!/bin/bash
 
+# cleaning up
+{
+	bash ../scripts/cleanup.sh
+} &> /dev/null # clearing module files
 
-bash ../scripts/cleanup.sh # cleaning up
-make # creating new module
-sudo dmesg -c # clearing log
-sudo rmmod message_slot # removing recent module
-sudo insmod message_slot.ko 235 # inserting new module
+{
+	sudo dmesg -c
+} &> /dev/null # clearing log
+
+# creating the new module
+make
+
+# removing the recent module
+sudo rmmod message_slot
+
+# inserting the new module
+sudo insmod message_slot.ko 235
+
+# showing the log of the module creation
 dmesg
 
-bash ../scripts/cleanup.sh
+# cleaning up
+{
+	bash ../scripts/cleanup.sh
+} &> /dev/null # clearing module files
 
 
 echo "Relinked the message_slot module"
