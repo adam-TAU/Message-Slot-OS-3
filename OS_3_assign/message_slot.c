@@ -111,7 +111,7 @@ static channel_entry* message_slot_get_channel_entry(slot_entry message_slot, un
  *		- Allocating memory might result in an error. If such error occurs, -ENOMEM is returned.
  *		- On any other successful run, SUCCESS is returned, and <*curr_channel> gets assigned a pointer to the updated channel's entry
  */ 
-static int message_slot_update_channel(slot_entry message_slot, unsigned int channel_id, size_t message_length, channel_entry** curr_channel);
+static int message_slot_update_channel(slot_entry *message_slot, unsigned int channel_id, size_t message_length, channel_entry** curr_channel);
 //------------------------------------------------------------------------------
 
 
@@ -137,36 +137,37 @@ static channel_entry* message_slot_get_channel_entry(slot_entry message_slot, un
 	channel_entry *curr = message_slot.head;
 	
 	while (curr != NULL) {
-		curr = curr -> next;
+
 		if (curr -> channel_id == channel_id) {
-			return curr;
+			return curr;	
 		}
 		
+		curr = curr -> next;
 	}
 	
 	return NULL;
 }
 //------------------------------------------------------------------------------
-static int message_slot_update_channel(slot_entry message_slot, unsigned int channel_id, size_t message_length, channel_entry** curr_channel) {
+static int message_slot_update_channel(slot_entry *message_slot, unsigned int channel_id, size_t message_length, channel_entry** curr_channel) {
   // validating message length
-  if (message_length == 0 || message_length > 128) {
+  if (message_length == 0 || message_length > BUF_LEN) {
   	return -EMSGSIZE;
   }
  
   // extracting the channel entry in the message slot corresponding to <channel_id>
-  *curr_channel = message_slot_get_channel_entry(message_slot, channel_id);
+  *curr_channel = message_slot_get_channel_entry(*message_slot, channel_id);
   
   // if a channel entry was never created that corresponds to the channel id under the message slot:
   // create one and add it to the start of the message slot's linked list of channels
   if ( NULL == (*curr_channel) ) {
-	  *curr_channel = kmalloc(sizeof(channel_entry), GFP_KERNEL);
+	  *curr_channel = (channel_entry*) kmalloc(sizeof(channel_entry), GFP_KERNEL);
 	  if ( !(*curr_channel) ) {
 	  	return -ENOMEM;
 	  }
 
 	  (*curr_channel)->channel_id = channel_id;
-	  (*curr_channel)->next = message_slot.head;
-	  message_slot.head = *curr_channel;
+	  (*curr_channel)->next = message_slot->head;
+	  message_slot->head = *curr_channel;
   }
   
   // reallocating memory for the channel's buffer (To maintain the space complexity of: O(C * M))
@@ -229,10 +230,10 @@ static ssize_t device_read( struct file* file,
                             size_t       length,
                             loff_t*      offset )
 {
-  size_t i;
+  size_t i, bytes_read = 0;
   unsigned int minor, channel_id;
   channel_entry *curr_channel;
-
+	
   // verifying that the file descriptor holds a valid channel id
   if (!is_channel_set(file)) {
   	return -EINVAL;
@@ -243,6 +244,7 @@ static ssize_t device_read( struct file* file,
   
   // extracting the message-channel entry
   channel_id = (unsigned int)file->private_data;
+  
   if ( NULL == (curr_channel = message_slot_get_channel_entry(slots[minor], channel_id)) ) { // if no channel is found, message mustn't exist
   	return -EWOULDBLOCK;
   } else if ( NULL == (curr_channel -> message) ) { // if channel exists, but with no message inside
@@ -254,6 +256,7 @@ static ssize_t device_read( struct file* file,
   	return -ENOSPC;
   }
   
+  /* DEBUG: for some reason bytes_read returns 80 */
   // reading the message lying in the channel buffer
   for ( i = 0; i < length && i < BUF_LEN; ++i ) {
     if (0 != put_user(curr_channel->message[i], &buffer[i])) {
@@ -261,7 +264,8 @@ static ssize_t device_read( struct file* file,
     }
   }
   
-  return SUCCESS;
+  // return the read message's length
+  return curr_channel->message_length;
 }
 
 //---------------------------------------------------------------
@@ -272,7 +276,7 @@ static ssize_t device_write( struct file*       file,
                              size_t             length,
                              loff_t*            offset)
 {
-  size_t i;
+  size_t i, bytes_written = 0;
   unsigned int minor, channel_id;
   channel_entry *curr_channel;
   int ret;
@@ -287,7 +291,7 @@ static ssize_t device_write( struct file*       file,
   
   // updating the messages channel
   channel_id = (unsigned int)file->private_data;
-  if ( 0 > (ret = message_slot_update_channel(slots[minor], channel_id, length, &curr_channel)) ) {
+  if ( 0 > (ret = message_slot_update_channel(&slots[minor], channel_id, length, &curr_channel)) ) {
   	return ret;
   }
   
@@ -296,10 +300,11 @@ static ssize_t device_write( struct file*       file,
     if (0 != get_user(curr_channel->message[i], &buffer[i])) {
     	return -EFAULT;
     }
+    bytes_written++;
   }
   
   // return the number of input characters used
-  return i;
+  return bytes_written;
 }
 
 //----------------------------------------------------------------

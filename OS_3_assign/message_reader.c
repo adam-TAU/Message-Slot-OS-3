@@ -46,8 +46,7 @@ int main(int args, char* argv[]) {
 	}
 	
 	// Read the message and save the amount of bytes read into <bytes_read>
-	char message[BUF_LEN];
-	if ( 0 > (bytes_read = read(fd, message, BUF_LEN)) ) {
+	if ( 0 > (bytes_read = read(fd, the_message, BUF_LEN)) ) {
 		print_err("Error with reading bytes from message channel", true);
 	}
 	
