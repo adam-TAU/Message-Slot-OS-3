@@ -126,7 +126,7 @@ static unsigned int get_minor_from_file(struct file* file) {
 }
 //------------------------------------------------------------------------------
 static bool is_channel_set(struct file* file) {
-	if ( get_minor_from_file(file) == CHANNEL_NOT_SET) { 
+	if ( file->private_data == CHANNEL_NOT_SET) { 
 		return false;
 	}
 	
