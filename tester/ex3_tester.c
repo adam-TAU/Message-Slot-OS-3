@@ -1,4 +1,4 @@
-#include "message_slot.h"
+#include "../OS_3_assign/message_slot.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -174,7 +174,7 @@ void test4()
 
         if (ioctl(device0_fd, MSG_SLOT_CHANNEL, 6) < 0)
         { print_failure(4); exit(0); }
-	printf("here1\n");
+
 	if (write(device1_fd, "hey", 3) >= 0)
 	{ print_failure(4); exit(0); }
 
