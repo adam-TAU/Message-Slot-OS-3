@@ -6,3 +6,6 @@ OS_3_assign/*cmd
 OS_3_assign/*o
 sender
 reader
+OS_3_assign/message_reader
+OS_3_assign/message_sender
+
