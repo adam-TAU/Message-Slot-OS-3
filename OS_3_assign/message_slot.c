@@ -126,7 +126,7 @@ static unsigned int get_minor_from_file(struct file* file) {
 }
 //------------------------------------------------------------------------------
 static bool is_channel_set(struct file* file) {
-	if ( (unsigned int) file->private_data == CHANNEL_NOT_SET) { 
+	if ( (uintptr_t) file->private_data == CHANNEL_NOT_SET) { 
 		return false;
 	}
 	
@@ -231,7 +231,8 @@ static ssize_t device_read( struct file* file,
                             loff_t*      offset )
 {
   size_t i;
-  unsigned int minor, channel_id;
+  unsigned int minor;
+  uintptr_t channel_id;
   channel_entry *curr_channel;
 	
   // verifying that the file descriptor holds a valid channel id
@@ -243,7 +244,7 @@ static ssize_t device_read( struct file* file,
   minor = get_minor_from_file(file);
   
   // extracting the message-channel entry
-  channel_id = (unsigned int)file->private_data;
+  channel_id = (uintptr_t)file->private_data;
   
   if ( NULL == (curr_channel = message_slot_get_channel_entry(slots[minor], channel_id)) ) { // if no channel is found, message mustn't exist
   	return -EWOULDBLOCK;
@@ -276,7 +277,8 @@ static ssize_t device_write( struct file*       file,
                              loff_t*            offset)
 {
   size_t i, bytes_written = 0;
-  unsigned int minor, channel_id;
+  unsigned int minor;
+  uintptr_t channel_id;
   channel_entry *curr_channel;
   int ret;
     
@@ -289,7 +291,7 @@ static ssize_t device_write( struct file*       file,
   minor = get_minor_from_file(file);
   
   // updating the messages channel
-  channel_id = (unsigned int)file->private_data;
+  channel_id = (uintptr_t)file->private_data;
   if ( 0 > (ret = message_slot_update_channel(&slots[minor], channel_id, length, &curr_channel)) ) {
   	return ret;
   }

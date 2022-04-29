@@ -1,8 +1,8 @@
 
 
 {
-sudo rm /dev/char_dev_test0
-sudo rm /dev/char_dev_test1
+sudo rm /dev/test0
+sudo rm /dev/test1
 sudo rmmod message_slot
 sudo insmod ../OS_3_assign/message_slot.ko
 } 2>/dev/null
