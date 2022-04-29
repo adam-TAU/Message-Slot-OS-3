@@ -10,7 +10,7 @@
 #define MAJOR_NUM 235
 
 // define the ioctl command id for changing the channel
-#define MSG_SLOT_CHANNEL _IOW(MAJOR_NUM, 0, long)
+#define MSG_SLOT_CHANNEL _IOW(MAJOR_NUM, 0, unsigned long)
 
 // simple boolean interface
 #define true 1

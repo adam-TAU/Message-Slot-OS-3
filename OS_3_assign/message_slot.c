@@ -73,7 +73,7 @@ typedef struct slot_entry {
 
 //------------------------------------------------------------------------------
 // an array that maintains the info about all open message slots
-static slot_entry slots[256]; // all elements 0
+static slot_entry slots[256] = {0}; // all elements 0
 //------------------------------------------------------------------------------
 
 
@@ -126,7 +126,7 @@ static unsigned int get_minor_from_file(struct file* file) {
 }
 //------------------------------------------------------------------------------
 static bool is_channel_set(struct file* file) {
-	if ( file->private_data == CHANNEL_NOT_SET) { 
+	if ( (unsigned int) file->private_data == CHANNEL_NOT_SET) { 
 		return false;
 	}
 	
@@ -230,7 +230,7 @@ static ssize_t device_read( struct file* file,
                             size_t       length,
                             loff_t*      offset )
 {
-  size_t i, bytes_read = 0;
+  size_t i;
   unsigned int minor, channel_id;
   channel_entry *curr_channel;
 	
@@ -256,7 +256,6 @@ static ssize_t device_read( struct file* file,
   	return -ENOSPC;
   }
   
-  /* DEBUG: for some reason bytes_read returns 80 */
   // reading the message lying in the channel buffer
   for ( i = 0; i < length && i < BUF_LEN; ++i ) {
     if (0 != put_user(curr_channel->message[i], &buffer[i])) {
