@@ -73,7 +73,7 @@ typedef struct slot_entry {
 
 //------------------------------------------------------------------------------
 // an array that maintains the info about all open message slots
-static slot_entry slots[256] = {0}; // all elements 0
+static slot_entry slots[256]; // all elements 0
 //------------------------------------------------------------------------------
 
 
